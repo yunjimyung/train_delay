@@ -1,5 +1,8 @@
 import tensorflow as tf
 import numpy as np
+import datetime
+
+time_now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 tf.set_random_seed(777)
 
@@ -17,9 +20,10 @@ y_dataset = xy[:,[-1]]
 
 #set pramater
 learning_rate = 1e-5
-training_epoch = 10000
+training_epoch = 6000
 batch_size = 100
 data_size = 335
+keep_prob_number = 1
 
 X = tf.placeholder(tf.float32, shape=[None,40])
 Y = tf.placeholder(tf.float32, shape=[None,1])
@@ -75,6 +79,16 @@ rmse_dataset = []
 rmse_testset = []
 count_epoch = []
 
+with open('./Data/result.txt','a') as f:
+    f.write("\n\n----------------------------------------------------")
+    f.write(time_now)
+    f.write("\nLeraning rate : %f\nEpoch : %d\nBatch size : %d\n\
+#Data size : %d\nKeep prob : %d" %(learning_rate, training_epoch, batch_size,
+data_size, keep_prob_number))
+
+    f.write("\n\nlearning start")
+
+#learning
 for epoch in range(training_epoch):
     avg_cost = 0
     total_batch = int(data_size/batch_size)
@@ -89,31 +103,29 @@ for epoch in range(training_epoch):
         i += batch_size
         x_data = xy[k:i, 0:-1]
         y_data = xy[k:i, [-1]]
-        c,_ = sess.run([cost, train], feed_dict={X:x_data, Y:y_data, keep_prob:1})
+        c,_ = sess.run([cost, train], feed_dict={X:x_data, Y:y_data, keep_prob:keep_prob_number})
         avg_cost += c / total_batch
 
-    if epoch % 1000 == 0:
+    if epoch % 10 == 0:
         prediction_dataset = sess.run(hypothesis,feed_dict={X:x_dataset, keep_prob:1})
         prediction_testset = sess.run(hypothesis,feed_dict={X:x_testset, keep_prob:1})
-        rmse_data = int((np.mean(y_dataset - prediction_dataset)**2)**0.5)
-        rmse_test = int((np.mean(y_testset - prediction_testset)**2)**0.5)
+        rmse_data = int(np.sqrt(np.mean(np.square(y_dataset - prediction_dataset))))
+        rmse_test = int(np.sqrt(np.mean(np.square(y_testset - prediction_testset))))
 
         rmse_dataset.append(rmse_data)
         rmse_testset.append(rmse_test)
         count_epoch.append(epoch)
 
+#print result
+    if epoch % 1000 == 0:
         print('Epoch:', '%04d'%(epoch + 1), 'Cost:', '{:.9f}'.format(avg_cost),
         'DataError:', rmse_data, 'TestError:', rmse_test)
 
-print("Learning finished")
+        with open('./Data/result.txt','a') as f:
+           f.write("\nEpoch: %d  Cost: %f  DataError: %d  TestError: %d"
+           %(epoch + 1, avg_cost, rmse_data, rmse_test))
 
-#plot graph
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
-plt.plot(count_epoch, rmse_dataset, 'g-')
-plt.plot(count_epoch, rmse_testset, 'r-')
-plt.show()
+print("Learning finished")
 
 #Save model
 saver = tf.train.Saver()
@@ -126,12 +138,17 @@ x = x.reshape(1,67)
 y = y_testset.reshape(1,67)
 
 with open('./Data/result.txt','a') as f:
-   f.write("\nLeraning rate : %f\nEpoch : %d\nBatch size : %d\n\
-#Data size : %d\nCost : %f" %(learning_rate, training_epoch, batch_size,
-data_size, avg_cost))
-   f.write('\ntestdata = ')
+   f.write('\n\ntestdata = ')
    f.write('\n%s'%str(y))
-   f.write('\nprediction = ')
+   f.write('\n\nprediction = ')
    f.write('\n%s'%str(x))
-   f.write('\ntestdata - prediction = ')
+   f.write('\n\ntestdata - prediction = ')
    f.write('\n%s'%str(y-x))
+
+   #plot graph
+   import matplotlib
+   matplotlib.use('TkAgg')
+   import matplotlib.pyplot as plt
+   plt.plot(count_epoch, rmse_dataset, 'g-')
+   plt.plot(count_epoch, rmse_testset, 'r-')
+   plt.show()
